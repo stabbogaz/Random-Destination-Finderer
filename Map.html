@@ -1,0 +1,121 @@
+    <!doctype html>
+    <html lang="en">
+      <head>
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/openlayers/4.6.4/ol.css" type="text/css">
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/openlayers/4.6.4/ol.js"></script>
+        <title>&larr;Allsopp&apos;s Random Destination Finderer</title>
+        <style> 
+            body { background-color:#ffc; }  
+            a { text-decoration:none; color:#ffc; width:10rem;}          
+            @media print {#map { display:none !important;} }
+            </style>
+      </head>
+      <body>
+    <div id="mainframe" style="padding:1rem; width:90vw; margin:auto; border-radius:.5rem; background-color:#c0c0c0;">
+        <h1 style="float:left;">Allsopp&apos;s Random Destination Finderer</h1>
+        <div id="buttons" style="float:right; background-color:#dea; padding:0.5rem 1rem;">
+            <label for="dist">Set Distance: </label>
+            <input type="radio" name="dist" value="25">25mi
+            <input type="radio" name="dist" value="50" checked>50mi
+            <input type="radio" name="dist" value="75">75mi
+            <input type="radio" name="dist" value="100">100mi
+            <hr/>
+            <button onClick="setDestination();" style="float:right; padding:.5rem; font-size:1rem;">Get a Destination</button>
+            </div>
+        <div id="info" style="display:none; font-size:2rem; padding:1rem; position:fixed; height:50vh; top:25vh; width:25vw; left:37.5vw; background-color:black; opacity:.6; font-family:monospace; color:#ccc; border-radius:1rem;">
+            <span id="brng" style="display:none;"></span>
+            <span id="dist" style="display:none;"></span>
+            <div id="latlon" style="display:none";></div>
+            <div id="name" style="font-size:125%; color:gold;"></div>
+            <div id="suburb"></div>
+            <div id="hamlet"></div>
+            <div id="village"></div>
+            <div id="town"></div>
+            <div id="city"></div>
+            <div id="county"></div>
+            <div id="postcode"></div>
+
+            </div>
+        <div style="position:fixed; height:2rem; top:calc(75vh - 2rem); left:calc(50vw - 5rem); width:20vw; " id="links">&nbsp;</div>
+        <iframe id="map" frameborder="0" scrolling="no" marginheight="0" marginwidth="0" style="border: 1px solid black; height:80vh; width:90%; margin-left:5%;"></iframe>
+        </div>
+
+
+        <script type="text/javascript">
+            var lat1 = 52.925235;
+            var lon1 = -1.278696;
+            var lat2 = 0;
+            var lon2 = 0;
+
+            var bb = "-3,51,-0.5,54";
+            z = "https://www.openstreetmap.org/export/embed.html?bbox=" + bb + "&marker=" + lat1.toFixed(2) + "," + lon1.toFixed(2);
+            document.getElementById("map").setAttribute("src",z);
+
+            function simpleReverseGeocoding(lon, lat) {
+                fetch('http://nominatim.openstreetmap.org/reverse?format=json&lon=' + lon + '&lat=' + lat).then(function(response) {
+                    return response.json();
+                    }).then(function(json) {
+
+                    list = document.getElementById('info').childNodes;
+                    list.forEach(function(arthur){
+                        z = arthur.id;
+                        q=eval('json.address.' + z);
+                        if(q == null) { arthur.innerText = null;} else { arthur.innerText = q; } 
+                        });
+
+                    document.getElementById('name').innerText = json.display_name.split(',')[0];
+                    document.getElementById('info').style.display='block';
+                    })
+                }
+            function setBrng() {
+                max=360;min=0;
+                document.getElementById("brng").innerHTML=Math.floor(Math.random() * (max - min +1)) + min;
+                }
+            function setDist() {
+//              max=100;min=25;
+//              document.getElementById("dist").innerHTML=Math.floor(Math.random() * (max - min +1)) + min;
+                var dist = document.getElementsByName('dist');
+                for (cnt = 0; cnt < dist.length; cnt++) {
+                    if (dist[cnt].checked) {document.getElementById("dist").innerHTML = dist[cnt].value; break;}
+                    }
+                }
+            function destinationPoint(distance, bearing, radius=6371e3) {
+                var δ = distance / radius; 
+                var θ = bearing*(Math.PI/180);
+                var φ1 = lat1*(Math.PI/180);
+                var λ1 = lon1*(Math.PI/180);
+
+                var sinφ2 = Math.sin(φ1) * Math.cos(δ) + Math.cos(φ1) * Math.sin(δ) * Math.cos(θ);
+                var φ2 = Math.asin(sinφ2);
+                var y = Math.sin(θ) * Math.sin(δ) * Math.cos(φ1);
+                var x = Math.cos(δ) - Math.sin(φ1) * sinφ2;
+                var λ2 = λ1 + Math.atan2(y, x);
+
+                var lat2 = φ2*(180/Math.PI);
+                var lon2 = λ2*(180/Math.PI);
+
+                return [lon2, lat2];
+                }
+            function setDestination() {
+                setBrng();
+                setDist();
+                var ng97fq = [lon1,lat1];
+                var start = ol.proj.fromLonLat(ng97fq);
+                brng = document.getElementById("brng").innerText;
+                dist = document.getElementById("dist").innerText;
+                var dest = destinationPoint(dist*1609.34, brng);
+                simpleReverseGeocoding(dest[0],dest[1]);
+                document.getElementById("latlon").innerText=dest[1] + ' ' + dest[0];
+                z = "https://www.openstreetmap.org/export/embed.html?bbox=" + bb + "&marker=" + dest[1].toFixed(2) + "," + dest[0].toFixed(2);
+                document.getElementById("map").setAttribute("src",z);
+                z = "<a target='allsopp_map' href='https://www.google.com/maps/dir/?api=1&origin=" + lat1 + "," + lon1 + "&destination=" + dest[1] + "," + dest[0] + "'  >Click for Directions</a><br/>";
+                if (document.getElementById("postcode").innerText == null) { } else { console.log(document.getElementById("postcode").innerText);
+                    z += "<a target='allsopp_whatpub' href='https://whatpub.com/search?q=" + document.getElementById("postcode").innerText.split(' ')[0] + "'>Whatpub</a>";
+                    }
+
+                document.getElementById('links').innerHTML = z;
+                }
+
+        </script>
+      </body>
+    </html>
